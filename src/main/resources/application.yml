@@ -1,0 +1,4 @@
+# »·¾³Ñ¡Ôñ
+spring:
+  profiles:
+    active: test

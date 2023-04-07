@@ -1,0 +1,50 @@
+# 服务
+server:
+  port: 10672
+  servlet:
+    context-path: /dcs
+# 日志配置
+logging:
+  config: classpath:logback-spring.xml
+# spring配置
+spring:
+  application:
+    name: dcs
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+  redis:
+    host: 127.0.0.1
+    lettuce:
+      pool:
+        max-active: 40
+        max-idle: 20
+        min-idle: 20
+        max-wait: 30000ms
+    timeout: 30000
+    password: liaoqian
+  main:
+    allow-bean-definition-overriding: true
+  aop:
+    auto: true
+    proxyTargetClass: true
+    jackson:
+      parser:
+        ## 忽略反斜杠字符
+        ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER: true
+# 服务全局配置
+abbsAndHds:
+  asyn: true
+  expire-time: 86400
+wkhtmltopdf:
+  path:
+    win: D:/applications/wkhtmltopdf/wkhtmltox/bin/wkhtmltopdf
+    linux: /plugin/linux/wkhtmltox/bin/wkhtmltopdf
+
+
+
+
+
+
+
