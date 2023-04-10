@@ -3,16 +3,13 @@ package com.ruoguang.dcs.service;
 
 import com.ruoguang.dcs.pojo.qo.Html2fileQo;
 import com.ruoguang.dcs.pojo.qo.Pdf2fileQo;
-import com.ruoguang.dcs.pojo.qo.chapterFile.AbbAndHdPageQo;
 import com.ruoguang.dcs.pojo.qo.chapterFile.NormalBase64FileQo;
 import com.ruoguang.dcs.pojo.vo.FormatConversionResult;
 import com.ruoguang.dcs.pojo.vo.chapterFile.AbbAndHdPageVo;
 import com.ruoguang.dcs.pojo.vo.chapterFile.AbbsAndHdsPageVo;
-import com.ruoguang.dcs.pojo.vo.chapterFile.ChapterFilesAbbListDetailVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
@@ -43,8 +40,6 @@ public interface IFormatConversionService {
     FormatConversionResult pdf2file(Pdf2fileQo qo) throws Exception;
 
     void pdf2word(HttpServletResponse response, IWord2PdfService asposeWordService, MultipartFile file) throws Exception;
-
-    ChapterFilesAbbListDetailVO pdf2ImgAbb(NormalBase64FileQo detailQo) throws Exception;
 
     NormalBase64FileQo hdDetailPage(NormalBase64FileQo qo) throws Exception;
 

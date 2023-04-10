@@ -22,10 +22,12 @@
 
 ## <span id="project_show" >功能演示</span>
 
+![image](functional_demo.gif)
 
-![image](https://pdsapi.aliyundrive.com/v2/redirect?id=40caa973900b44a1a14c3a63aa5162101680857411200631573)
+- 演示地址https://pdsapi.aliyundrive.com/v2/redirect?id=717e41e884494dd78d4fe98f7759703c1681113132003979223
+- 阿里云盘演示gif地址：https://www.aliyundrive.com/s/eSBogEyp5xh
+- 本地功能演示gif地址：functional_demo.gif
 
-演示地址https://pdsapi.aliyundrive.com/v2/redirect?id=40caa973900b44a1a14c3a63aa5162101680857411200631573
 
 ## <span id="introduction" >项目简介</span>
 

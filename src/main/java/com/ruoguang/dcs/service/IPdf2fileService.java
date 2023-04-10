@@ -2,11 +2,9 @@ package com.ruoguang.dcs.service;
 
 
 import com.ruoguang.dcs.pojo.qo.Pdf2fileQo;
-import com.ruoguang.dcs.pojo.qo.chapterFile.AbbAndHdPageQo;
 import com.ruoguang.dcs.pojo.qo.chapterFile.NormalBase64FileQo;
 import com.ruoguang.dcs.pojo.vo.FormatConversionResult;
 import com.ruoguang.dcs.pojo.vo.chapterFile.AbbAndHdPageVo;
-import com.ruoguang.dcs.pojo.vo.chapterFile.ChapterFilesAbbListDetailVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -19,7 +17,6 @@ public interface IPdf2fileService {
 
     FormatConversionResult pdfToImage(Pdf2fileQo qo);
 
-    ChapterFilesAbbListDetailVO pdf2ImgAbb(NormalBase64FileQo detailQo) throws Exception;
 
     NormalBase64FileQo pdf2ImgHd(NormalBase64FileQo qo) throws Exception;
 

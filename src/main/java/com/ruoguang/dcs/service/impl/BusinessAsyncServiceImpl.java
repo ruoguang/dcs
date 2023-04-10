@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.ruoguang.dcs.async.BusinessAsync;
 import com.ruoguang.dcs.constants.RedisPreKey;
+import com.ruoguang.dcs.pool.PDFDocumentPool;
 import com.ruoguang.dcs.service.IBusinessAsyncService;
 import com.ruoguang.dcs.service.IRedisService;
 import com.ruoguang.dcs.util.Base64Util;
@@ -26,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -53,83 +55,60 @@ public class BusinessAsyncServiceImpl implements IBusinessAsyncService {
     private BusinessAsync businessAsync;
 
 
-
     @Value("${abbsAndHds.asyn}")
     private boolean abbsAndHdsAsyn;
 
 
-
-
     @Override
-    public boolean autoPdfParseToAbbsAndHdProcess(String allQueryId, byte[] bytes, int pages, boolean abbsAndHdsAsyn) throws IOException {
+    public boolean autoPdfParseToAbbsAndHdProcess(String allQueryId, byte[] bytes, int pages, boolean abbsAndHdsAsyn) throws Exception {
         if (StringUtils.isBlank(allQueryId) || bytes == null) {
             return false;
         }
 
         String redisKey = RedisPreKey.CACHE_PDF_ALLQUERY + allQueryId;
-
+        PDDocument document = null;
         // 异步任务解析
-        if (abbsAndHdsAsyn) {
-            long start = System.currentTimeMillis();
-            Map<String, Object> map = new ConcurrentHashMap<>(pages * 2 + 5);
-            map.put("state", 1);
-            map.put("totalPage", pages);
-            map.put("processed", 0);
-            map.put("time", 0);
-            redisService.hmset(redisKey, map);
-            redisService.expire(redisKey, abbsAndHdsExpired, TimeUnit.SECONDS);
-
-            Set<Future<Boolean>> set = new HashSet<>(pages);
-            for (int pageCounter = 0; pageCounter < pages; pageCounter++) {
-                Future<Boolean> booleanFuture = businessAsync.autoPdfParseToAbbsAndHdProcessDetail(redisKey, bytes, pageCounter, map, abbsAndHdsAsyn);
-                set.add(booleanFuture);
-            }
-
-            while (true) {
-                if (set.size() == pages && allDone(set)) {
-                    long end = System.currentTimeMillis();
-                    map.put("state", 2);
-                    map.put("processed", pages);
-                    map.put("time", (end - start));
-                    redisService.hmset(redisKey, map);
-
-
-                    log.info("pdf全部解析和上传redis共耗时记录-->uuid:{} , size:{}byte , abbsAndHdsAsyn:{} , pages:{} , time:{}ms , speed:{}ms/p", allQueryId, bytes.length, abbsAndHdsAsyn, pages, (end - start), (end - start) / pages);
-                    return true;
-                }
-            }
-            // 同步解析
-        } else {
-            try (PDDocument document = PDDocument.load(bytes)) {
+        try {
+            if (abbsAndHdsAsyn) {
                 long start = System.currentTimeMillis();
-                PDFRenderer pdfRenderer = new PDFRenderer(document);
-                HashMap<String, Object> map = new HashMap<>(document.getNumberOfPages() * 2 + 5);
+                Map<String, Object> map = new ConcurrentHashMap<>(pages * 2 + 5);
                 map.put("state", 1);
-                map.put("totalPage", document.getNumberOfPages());
+                map.put("totalPage", pages);
                 map.put("processed", 0);
                 map.put("time", 0);
                 redisService.hmset(redisKey, map);
+                redisService.expire(redisKey, abbsAndHdsExpired, TimeUnit.SECONDS);
 
-
-                for (int pageCounter = 0; pageCounter < document.getNumberOfPages(); pageCounter++) {
-                    autoPdfParseToAbbsAndHdProcessDetailSyn(redisKey, pdfRenderer, pageCounter);
+                Set<Future<Boolean>> set = new HashSet<>(pages);
+                document = PDDocument.load(bytes);
+                PDFRenderer pdfRendere = new PDFRenderer(document);
+                for (int pageCounter = 0; pageCounter < pages; pageCounter++) {
+                    Future<Boolean> booleanFuture = businessAsync.autoPdfParseToAbbsAndHdProcessDetail(redisKey, pdfRendere, pageCounter, map, abbsAndHdsAsyn);
+                    set.add(booleanFuture);
                 }
 
-                long end = System.currentTimeMillis();
-                map.put("state", 2);
-                map.put("processed", document.getNumberOfPages());
-                map.put("time", (end - start));
-                redisService.hmset(redisKey, map);
+                while (true) {
+                    if (set.size() == pages && allDone(set)) {
+                        long end = System.currentTimeMillis();
+                        map.put("state", 2);
+                        map.put("processed", pages);
+                        map.put("time", (end - start));
+                        redisService.hmset(redisKey, map);
 
 
-                log.info("pdf全部解析和上传redis共耗时记录-->uuid:{} , size:{}byte , abbsAndHdsAsyn:{} , pages:{} , time:{}ms , speed:{}ms/p", allQueryId, bytes.length, abbsAndHdsAsyn, document.getNumberOfPages(), (end - start), (end - start) / document.getNumberOfPages());
-                return true;
-            } catch (Exception e) {
-                log.error("pdf转换错误：", e);
-                return false;
+                        log.info("pdf全部解析和上传redis共耗时记录-->uuid:{} , size:{}byte , abbsAndHdsAsyn:{} , pages:{} , time:{}ms , speed:{}ms/p", allQueryId, bytes.length, abbsAndHdsAsyn, pages, (end - start), (end - start) / pages);
+                        return true;
+                    }
+                }
+
             }
-
+        }finally {
+            if (document != null) {
+                document.close();
+            }
         }
+
+        return false;
     }
 
     private boolean allDone(Set<Future<Boolean>> sets) {
@@ -145,18 +124,20 @@ public class BusinessAsyncServiceImpl implements IBusinessAsyncService {
     }
 
     @Override
-    public void autoPdfParseToAbbsAndHdProcessDetailAsyn(String redisKey, byte[] bytes, int pageCounter, Map<String, Object> map) throws IOException {
-        try (PDDocument document = PDDocument.load(bytes)) {
-            final PDFRenderer pdfRenderer = new PDFRenderer(document);
-
+    public void autoPdfParseToAbbsAndHdProcessDetailAsyn(String redisKey, PDFRenderer pdfRenderer, int pageCounter, Map<String, Object> map) throws IOException {
+        try {
             long start = System.currentTimeMillis();
-            BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, ABB_IMG_DPI, ImageType.RGB);
+            BufferedImage bim;
+            BufferedImage bim2;
+            synchronized (pdfRenderer) {
+                bim = pdfRenderer.renderImageWithDPI(pageCounter, ABB_IMG_DPI, ImageType.RGB);
+                bim2 = pdfRenderer.renderImageWithDPI(pageCounter, HD_IMG_DPI, ImageType.RGB);
+            }
+
             ImgToolUtil imgToolUtil = new ImgToolUtil(bim);
             imgToolUtil.resize(ABB_IMG_DPI, ABB_IMG_DPI * bim.getHeight() / bim.getWidth());
             String abb = Base64Util.BufferedImageToBase64(bim);
 
-
-            BufferedImage bim2 = pdfRenderer.renderImageWithDPI(pageCounter, HD_IMG_DPI, ImageType.RGB);
             ImgToolUtil imgToolUtil2 = new ImgToolUtil(bim2);
             imgToolUtil2.resize(HD_IMG_DPI, HD_IMG_DPI * bim2.getHeight() / bim2.getWidth());
             String hd = Base64Util.BufferedImageToBase64(bim2);

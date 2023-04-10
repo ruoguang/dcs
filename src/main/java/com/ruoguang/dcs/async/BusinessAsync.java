@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONObject;
 import com.ruoguang.dcs.service.IBusinessAsyncService;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
@@ -44,7 +46,7 @@ public class BusinessAsync {
     }
 
     @Async("myTaskExecutor")
-    public CompletableFuture<String> autoPdfParseToAbbsAndHds(String allQueryId, byte[] bytes, int pages, boolean abbsAndHdsAsyn) throws IOException {
+    public CompletableFuture<String> autoPdfParseToAbbsAndHds(String allQueryId, byte[] bytes, int pages, boolean abbsAndHdsAsyn) throws Exception {
         log.info("Thread : {}-->,正在执行 autoPdfParseToAbbsAndHds", Thread.currentThread().getName());
         log.info("allQueryId : {}", allQueryId);
         boolean autoPdfParseToAbbsAndHdsFlag = businessAsyncService.autoPdfParseToAbbsAndHdProcess(allQueryId, bytes, pages, abbsAndHdsAsyn);
@@ -54,11 +56,11 @@ public class BusinessAsync {
 
 
     @Async("myTaskExecutor")
-    public CompletableFuture<Boolean> autoPdfParseToAbbsAndHdProcessDetail(String redisKey, byte[] bytes, int pageCounter, Map<String, Object> detailsMap, boolean abbsAndHdsAsyn) throws IOException {
+    public CompletableFuture<Boolean> autoPdfParseToAbbsAndHdProcessDetail(String redisKey, PDFRenderer pdfRendere, int pageCounter, Map<String, Object> detailsMap, boolean abbsAndHdsAsyn) throws IOException {
         log.info("thread : {}-->,正在执行 autoPdfParseToAbbsAndHdProcessDetail", Thread.currentThread().getName());
         log.info("redisKey->{}", redisKey);
         log.info("pageCounter->{}", pageCounter);
-        businessAsyncService.autoPdfParseToAbbsAndHdProcessDetailAsyn(redisKey, bytes, pageCounter, detailsMap);
+        businessAsyncService.autoPdfParseToAbbsAndHdProcessDetailAsyn(redisKey, pdfRendere, pageCounter, detailsMap);
         return CompletableFuture.completedFuture(true);
     }
 

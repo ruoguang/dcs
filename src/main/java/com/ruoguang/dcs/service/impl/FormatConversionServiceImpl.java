@@ -7,13 +7,11 @@ import com.ruoguang.dcs.enums.BusinessExceptionEnum;
 import com.ruoguang.dcs.exception.BusinessException;
 import com.ruoguang.dcs.pojo.qo.Html2fileQo;
 import com.ruoguang.dcs.pojo.qo.Pdf2fileQo;
-import com.ruoguang.dcs.pojo.qo.chapterFile.AbbAndHdPageQo;
 import com.ruoguang.dcs.pojo.qo.chapterFile.NormalBase64FileQo;
 import com.ruoguang.dcs.pojo.vo.Base64ResultSet;
 import com.ruoguang.dcs.pojo.vo.FormatConversionResult;
 import com.ruoguang.dcs.pojo.vo.chapterFile.AbbAndHdPageVo;
 import com.ruoguang.dcs.pojo.vo.chapterFile.AbbsAndHdsPageVo;
-import com.ruoguang.dcs.pojo.vo.chapterFile.ChapterFilesAbbListDetailVO;
 import com.ruoguang.dcs.service.IFormatConversionService;
 import com.ruoguang.dcs.service.IPdf2fileService;
 import com.ruoguang.dcs.service.IRedisService;
@@ -178,10 +176,6 @@ public class FormatConversionServiceImpl implements IFormatConversionService {
         outputStream.close();
     }
 
-    @Override
-    public ChapterFilesAbbListDetailVO pdf2ImgAbb(NormalBase64FileQo qo) throws Exception {
-        return pdf2fileService.pdf2ImgAbb(qo);
-    }
 
     @Override
     public NormalBase64FileQo hdDetailPage(NormalBase64FileQo qo) throws Exception {

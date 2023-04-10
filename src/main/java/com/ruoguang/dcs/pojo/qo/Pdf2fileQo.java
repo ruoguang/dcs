@@ -37,16 +37,6 @@ public class Pdf2fileQo {
     @ApiModelProperty(hidden = true)
     private byte[] fileBytes;
     /**
-     * 输出起始页面
-     */
-    @ApiModelProperty(value = "输出起始页面(默认0)")
-    private int startPage;
-    /**
-     * 输出终止页面
-     */
-    @ApiModelProperty(value = "输出终止页面(默认当前pdf的最大页面下标)")
-    private int endPage;
-    /**
      * 像素
      */
     @ApiModelProperty(value = "像素(单位px 转换的最后像素，像素越大文件内容大，默认2560px)", example = "2560")

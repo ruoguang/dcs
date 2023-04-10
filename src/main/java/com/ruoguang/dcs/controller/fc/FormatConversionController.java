@@ -143,7 +143,7 @@ public class FormatConversionController {
      */
     @PostMapping("/pdf2imgByFile")
     @ApiOperation(value = "pdf转img")
-    public AbbAndHdPageVo pdf2wordByFile(@RequestParam("file") MultipartFile file) throws Exception {
+    public AbbAndHdPageVo pdf2imgByFile(@RequestParam("file") MultipartFile file) throws Exception {
         return formatConversionService.abbAndHdPage(file);
     }
 

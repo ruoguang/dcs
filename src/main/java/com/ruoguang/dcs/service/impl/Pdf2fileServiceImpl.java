@@ -3,12 +3,11 @@ package com.ruoguang.dcs.service.impl;
 
 import com.ruoguang.dcs.async.BusinessAsync;
 import com.ruoguang.dcs.pojo.qo.Pdf2fileQo;
-import com.ruoguang.dcs.pojo.qo.chapterFile.AbbAndHdPageQo;
 import com.ruoguang.dcs.pojo.qo.chapterFile.NormalBase64FileQo;
 import com.ruoguang.dcs.pojo.vo.Base64ResultSet;
 import com.ruoguang.dcs.pojo.vo.FormatConversionResult;
 import com.ruoguang.dcs.pojo.vo.chapterFile.AbbAndHdPageVo;
-import com.ruoguang.dcs.pojo.vo.chapterFile.ChapterFilesAbbListDetailVO;
+import com.ruoguang.dcs.pool.PDFDocumentPool;
 import com.ruoguang.dcs.service.IPdf2fileService;
 import com.ruoguang.dcs.service.IWord2PdfService;
 import com.ruoguang.dcs.util.Base64Util;
@@ -17,18 +16,11 @@ import com.ruoguang.dcs.util.UuidUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
-import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import com.aspose.pdf.Document;
-import com.aspose.pdf.DocSaveOptions;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.image.BufferedImage;
@@ -115,16 +107,11 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
         PDDocument document = null;
         byte[] bytes = qo.getFileBytes();
         try {
-            document = PDDocument.load(bytes);
+            document = PDFDocumentPool.borrowObject(bytes);
             PDFRenderer pdfRenderer = new PDFRenderer(document);
-            int startPage = qo.getStartPage();
-            int endPage = qo.getEndPage();
             int dpi = HD_IMG_DPI;
             Base64ResultSet base64ResultSet = new Base64ResultSet();
             for (int pageCounter = 0; pageCounter < document.getNumberOfPages(); pageCounter++) {
-                if (pageCounter < startPage || pageCounter > endPage) {
-                    continue;
-                }
                 BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, dpi, ImageType.RGB);
                 ImgToolUtil imgToolUtil = new ImgToolUtil(bim);
                 imgToolUtil.resize(dpi, dpi * bim.getHeight() / bim.getWidth());
@@ -136,35 +123,21 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
         } finally {
             if (document != null) {
                 try {
-                    document.close();
+                    PDFDocumentPool.returnObject(document);
                 } catch (Exception e) {
                     //
                 }
-
             }
         }
         return result;
     }
 
-    @Override
-    public ChapterFilesAbbListDetailVO pdf2ImgAbb(NormalBase64FileQo detailQo) throws Exception {
-        Pdf2fileQo pdf2fileQo = new Pdf2fileQo();
-        pdf2fileQo.setBase64Source(detailQo.getBase64Code());
-        pdf2fileQo.setDpi(ABB_IMG_DPI);
-        pdf2fileQo.setStartPage(detailQo.getCurPage());
-        pdf2fileQo.setEndPage(detailQo.getCurPage());
-        pdf2fileQo.setTitle(detailQo.getTitle());
-        pdf2fileQo.setSuffix(detailQo.getSuffix());
-        return pdf2ImgAbbProcess(pdf2fileQo);
-    }
 
     @Override
     public NormalBase64FileQo pdf2ImgHd(NormalBase64FileQo qo) throws Exception {
         Pdf2fileQo pdf2fileQo = new Pdf2fileQo();
         pdf2fileQo.setBase64Source(qo.getBase64Code());
         pdf2fileQo.setDpi(HD_IMG_DPI);
-        pdf2fileQo.setStartPage(qo.getCurPage());
-        pdf2fileQo.setEndPage(qo.getCurPage());
         pdf2fileQo.setTitle(qo.getTitle());
         pdf2fileQo.setSuffix(qo.getSuffix());
         return pdf2ImgHdProcess(pdf2fileQo);
@@ -172,8 +145,6 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
 
     @Override
     public AbbAndHdPageVo abbAndHdPage(MultipartFile file) throws Exception {
-        Pdf2fileQo pdf2fileQo = new Pdf2fileQo();
-
         return abbAndHdPageProcess(file, true);
     }
 
@@ -186,34 +157,8 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
     private AbbAndHdPageVo abbAndHdPageProcessDetail(MultipartFile multipartFile, boolean allQuery) throws IOException {
         AbbAndHdPageVo result = new AbbAndHdPageVo();
         PDDocument document = null;
-
-        File file = new File(multipartFile.getOriginalFilename());
-        multipartFile.transferTo(file);
         try {
-            document = PDDocument.load(file);
-            PDFRenderer pdfRenderer = new PDFRenderer(document);
-
-            int abbDpi = ABB_IMG_DPI;
-            int hdDpi = HD_IMG_DPI;
-            Base64ResultSet base64ResultSet = new Base64ResultSet();
-            for (int pageCounter = 0; pageCounter < document.getNumberOfPages(); pageCounter++) {
-
-                // abb
-                BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, abbDpi, ImageType.RGB);
-                ImgToolUtil imgToolUtil = new ImgToolUtil(bim);
-                imgToolUtil.resize(abbDpi, abbDpi * bim.getHeight() / bim.getWidth());
-                String abb = Base64Util.BufferedImageToBase64(bim);
-                base64ResultSet.add(abb);
-                result.setCurAbbImgBase64code(abb);
-
-                // hd
-                BufferedImage bim2 = pdfRenderer.renderImageWithDPI(pageCounter, hdDpi, ImageType.RGB);
-                ImgToolUtil imgToolUtil2 = new ImgToolUtil(bim2);
-                imgToolUtil2.resize(hdDpi, hdDpi * bim2.getHeight() / bim2.getWidth());
-                String hd = Base64Util.BufferedImageToBase64(bim2);
-                base64ResultSet.add(hd);
-                result.setCurHdImgBase64code(hd);
-            }
+            document = PDFDocumentPool.borrowObject(multipartFile.getBytes());
             result.setAllQuery(allQuery ? 1 : 0);
             if (allQuery) {
                 String allQueryId = UuidUtils.uuid32();
@@ -227,7 +172,7 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
         } finally {
             if (document != null) {
                 try {
-                    document.close();
+                    PDFDocumentPool.returnObject(document);
                 } catch (Exception e) {
                     //
                 }
@@ -258,80 +203,19 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
     }
 
 
-    private ChapterFilesAbbListDetailVO pdf2ImgAbbProcess(Pdf2fileQo qo) throws Exception {
-        String base64Source = qo.getBase64Source();
-        // 这里做格式校验和转换
-        if (StringUtils.isBlank(base64Source)) {
-            throw new RuntimeException("数据源不能为空");
-        }
-        if (containsHead(base64Source)) {
-            String head = base64Source.split(",")[0];
-            String sourceType = head.split(";")[0].split("/")[1];
-            qo.setSourceType(sourceType);
-            base64Source = removeHead(base64Source);
-        }
-        if (StringUtils.isBlank(qo.getImageType()) || !qo.getImageType().startsWith(".")) {
-            qo.setImageType(".png");
-        }
-        qo.setBase64Source(base64Source);
-        qo.setFileBytes(Base64Util.base64ToByteArr(base64Source));
-        return pdf2ImgAbbProcessDetail(qo);
-    }
 
-    private ChapterFilesAbbListDetailVO pdf2ImgAbbProcessDetail(Pdf2fileQo qo) {
-        ChapterFilesAbbListDetailVO result = new ChapterFilesAbbListDetailVO();
-        PDDocument document = null;
-        byte[] bytes = qo.getFileBytes();
-        try {
-            document = PDDocument.load(bytes);
-            PDFRenderer pdfRenderer = new PDFRenderer(document);
-            int startPage = qo.getStartPage();
-            int endPage = qo.getEndPage();
-            int dpi = ABB_IMG_DPI;
-            Base64ResultSet base64ResultSet = new Base64ResultSet();
-            for (int pageCounter = 0; pageCounter < document.getNumberOfPages(); pageCounter++) {
-                if (pageCounter < startPage || pageCounter > endPage) {
-                    continue;
-                }
-                BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, dpi, ImageType.RGB);
-                ImgToolUtil imgToolUtil = new ImgToolUtil(bim);
-                imgToolUtil.resize(dpi, dpi * bim.getHeight() / bim.getWidth());
-                String imageToBase64 = Base64Util.BufferedImageToBase64(bim);
-                base64ResultSet.add(imageToBase64);
-                result.setCurAbbImgBase64code(imageToBase64);
-            }
-            result.setSourceBase64code(qo.getBase64Source());
-            result.setTotalPage(document.getNumberOfPages());
-            result.setCurPage(startPage);
-            result.setTitle(qo.getTitle());
-            result.setSuffix(qo.getSuffix());
-        } catch (Exception e) {
-            log.error("pdf转换错误：", e);
-        } finally {
-            if (document != null) {
-                try {
-                    document.close();
-                } catch (Exception e) {
-                    //
-                }
-            }
-        }
-        return result;
-    }
 
     private NormalBase64FileQo pdf2ImgHdProcessDetail(Pdf2fileQo qo) {
         NormalBase64FileQo result = new NormalBase64FileQo();
         byte[] bytes = qo.getFileBytes();
-        try (PDDocument document = PDDocument.load(bytes)) {
+        PDDocument document=null;
+        try {
+            document=PDFDocumentPool.borrowObject(bytes);
             PDFRenderer pdfRenderer = new PDFRenderer(document);
-            int startPage = qo.getStartPage();
-            int endPage = qo.getEndPage();
+
             int dpi = HD_IMG_DPI;
             Base64ResultSet base64ResultSet = new Base64ResultSet();
             for (int pageCounter = 0; pageCounter < document.getNumberOfPages(); pageCounter++) {
-                if (pageCounter < startPage || pageCounter > endPage) {
-                    continue;
-                }
                 BufferedImage bim = pdfRenderer.renderImageWithDPI(pageCounter, dpi, ImageType.RGB);
                 ImgToolUtil imgToolUtil = new ImgToolUtil(bim);
                 imgToolUtil.resize(dpi, dpi * bim.getHeight() / bim.getWidth());
@@ -340,17 +224,25 @@ public class Pdf2fileServiceImpl implements IPdf2fileService {
                 result.setHdDetailPageBase64Code(imageToBase64);
             }
             result.setBase64Code(qo.getBase64Source());
-            result.setCurPage(startPage);
+
             result.setTitle(qo.getTitle());
             result.setSuffix(qo.getSuffix());
         } catch (Exception e) {
             log.error("pdf转换错误：", e);
+        }finally {
+            if (document != null) {
+                try {
+                    PDFDocumentPool.returnObject(document);
+                } catch (Exception e) {
+                    //
+                }
+            }
         }
         return result;
     }
 
     @Override
     public void pdf2word(InputStream inputStream, OutputStream outputStream) throws Exception {
-        asposeWordService.pdf2word(inputStream,outputStream);
+        asposeWordService.pdf2word(inputStream, outputStream);
     }
 }
